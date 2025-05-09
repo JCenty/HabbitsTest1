@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Siłownia Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 400px;
+      margin: auto;
+      padding: 20px;
+    }
+    .habit {
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    .stats {
+      margin-top: 30px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Siłownia Tracker 💪</h1>
+
+  <div class="habit">
+    <p>Dziś: <span id="today-date"></span></p>
+    <button id="mark-btn">✅ Zaznacz, że byłem na siłowni</button>
+    <p id="status"></p>
+  </div>
+
+  <div class="stats">
+    <p>📊 Siła: <span id="strength"></span> pkt</p>
+    <p>🗓️ Akcje w tym tygodniu: <span id="weekly-count"></span></p>
+    <p>📅 Ostatnia aktualizacja: <span id="last-update"></span></p>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "gym-tracker-data";
+    const today = new Date().toISOString().split("T")[0];
+
+    const defaultData = {
+      strength: 10,
+      actions: {}, // {"2025-05-09": true}
+      lastUpdatedWeek: null,
+    };
+
+    let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultData;
+
+    document.getElementById("today-date").textContent = today;
+    const markBtn = document.getElementById("mark-btn");
+    const statusEl = document.getElementById("status");
+    const strengthEl = document.getElementById("strength");
+    const weeklyCountEl = document.getElementById("weekly-count");
+    const lastUpdateEl = document.getElementById("last-update");
+
+    // Oblicz numer tygodnia
+    function getWeekNumber(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+      const yearStart = new Date(d.getFullYear(), 0, 1);
+      return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    }
+
+    function getCurrentWeek() {
+      return getWeekNumber(today);
+    }
+
+    function getWeekActionsCount(week) {
+      return Object.keys(data.actions).filter(date => getWeekNumber(date) === week).length;
+    }
+
+    function updateStrengthIfNewWeek() {
+      const currentWeek = getCurrentWeek();
+      if (data.lastUpdatedWeek !== currentWeek) {
+        const lastWeek = currentWeek - 1;
+        const count = getWeekActionsCount(lastWeek);
+
+        if (count === 0) data.strength -= 1;
+        else if (count > 1) data.strength += (count - 1);
+
+        data.lastUpdatedWeek = currentWeek;
+        saveData();
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      render();
+    }
+
+    function render() {
+      const markedToday = !!data.actions[today];
+      statusEl.textContent = markedToday
+        ? "✅ Już zaznaczyłeś dzisiejszą akcję."
+        : "❌ Nie zaznaczyłeś dzisiejszej akcji.";
+
+      markBtn.disabled = markedToday;
+      strengthEl.textContent = data.strength;
+      weeklyCountEl.textContent = getWeekActionsCount(getCurrentWeek());
+      lastUpdateEl.textContent = `Tydzień ${data.lastUpdatedWeek || "-"}`;
+    }
+
+    markBtn.addEventListener("click", () => {
+      data.actions[today] = true;
+      saveData();
+    });
+
+    updateStrengthIfNewWeek();
+    render();
+  </script>
+</body>
+</html>
