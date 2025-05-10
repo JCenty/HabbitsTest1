@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Siłownia Tracker</title>
+  <!-- Możliwość dodania jako aplikacja na ekranie -->
   <link rel="manifest" href="manifest.json" />
   <style>
     body {
@@ -29,12 +30,14 @@
 <body>
   <h1>Siłownia Tracker 💪</h1>
 
+  <!-- Sekcja główna z akcją -->
   <div class="habit">
     <p>Dziś: <span id="today-date"></span></p>
     <button id="mark-btn">✅ Zaznacz, że byłem na siłowni</button>
     <p id="status"></p>
   </div>
 
+  <!-- Sekcja statystyk -->
   <div class="stats">
     <p>📊 Siła: <span id="strength"></span> pkt</p>
     <p>🗓️ Akcje w tym tygodniu: <span id="weekly-count"></span></p>
@@ -42,17 +45,20 @@
   </div>
 
   <script>
-    const STORAGE_KEY = "gym-tracker-data";
-    const today = new Date().toISOString().split("T")[0];
+    const STORAGE_KEY = "gym-tracker-data"; // Klucz do localStorage
+    const today = new Date().toISOString().split("T")[0]; // Dzisiejsza data (np. 2025-05-10)
 
+    // Domyślne dane, jeśli aplikacja uruchamiana pierwszy raz
     const defaultData = {
-      strength: 11,
-      actions: {}, // {"2025-05-09": true}
-      lastUpdatedWeek: null,
+      strength: 10,        // Początkowa wartość siły
+      actions: {},         // Obiekt przechowujący wykonane akcje wg daty
+      lastUpdatedWeek: null, // Ostatni tydzień, dla którego zaktualizowano siłę
     };
 
+    // Wczytanie danych z localStorage lub przyjęcie domyślnych
     let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultData;
 
+    // Pobranie elementów HTML
     document.getElementById("today-date").textContent = today;
     const markBtn = document.getElementById("mark-btn");
     const statusEl = document.getElementById("status");
@@ -60,61 +66,81 @@
     const weeklyCountEl = document.getElementById("weekly-count");
     const lastUpdateEl = document.getElementById("last-update");
 
-    // Oblicz numer tygodnia
+    // Funkcja obliczająca numer tygodnia z daty (np. tydzień 19)
     function getWeekNumber(date) {
       const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+      d.setHours(0, 0, 0, 0); // zerujemy godziny
+      d.setDate(d.getDate() + 4 - (d.getDay() || 7)); // przestawiamy na czwartek w tym tygodniu
       const yearStart = new Date(d.getFullYear(), 0, 1);
-      return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+      return Math.ceil(((d - yearStart) / 86400000 + 1) / 7); // obliczamy tydzień
     }
 
+    // Funkcja zwracająca bieżący numer tygodnia
     function getCurrentWeek() {
       return getWeekNumber(today);
     }
 
+    // Funkcja licząca liczbę wykonanych akcji w danym tygodniu
     function getWeekActionsCount(week) {
       return Object.keys(data.actions).filter(date => getWeekNumber(date) === week).length;
     }
 
+    // Funkcja aktualizująca siłę raz na tydzień (przy zmianie tygodnia)
     function updateStrengthIfNewWeek() {
       const currentWeek = getCurrentWeek();
       if (data.lastUpdatedWeek !== currentWeek) {
         const lastWeek = currentWeek - 1;
         const count = getWeekActionsCount(lastWeek);
 
-        if (count === 0) data.strength -= 1;
-        else if (count > 1) data.strength += (count - 1);
+        // Zasady aktualizacji siły:
+        if (count === 0) data.strength = Math.max(0, data.strength - 1); // minimalna siła to 0
+        else if (count > 1) data.strength += (count - 1); // bonus za więcej niż 1 akcję
 
         data.lastUpdatedWeek = currentWeek;
-        saveData();
+        saveData(); // zapisujemy zmiany
       }
     }
 
+    // Funkcja zapisująca dane do localStorage
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      render();
+      render(); // odśwież widok
     }
 
+    // Funkcja aktualizująca widok aplikacji
     function render() {
-      const markedToday = !!data.actions[today];
+      const markedToday = !!data.actions[today]; // sprawdzamy czy dziś akcja już została zaznaczona
+
+      // Zmieniamy tekst przycisku zależnie od tego, czy zaznaczono
+      markBtn.textContent = markedToday
+        ? "❌ Cofnij zaznaczenie"
+        : "✅ Zaznacz, że byłem na siłowni";
+
+      // Komunikat statusu
       statusEl.textContent = markedToday
         ? "✅ Już zaznaczyłeś dzisiejszą akcję."
         : "❌ Nie zaznaczyłeś dzisiejszej akcji.";
 
-      markBtn.disabled = markedToday;
+      // Aktualizacja danych w interfejsie
       strengthEl.textContent = data.strength;
       weeklyCountEl.textContent = getWeekActionsCount(getCurrentWeek());
       lastUpdateEl.textContent = `Tydzień ${data.lastUpdatedWeek || "-"}`;
     }
 
+    // Obsługa kliknięcia przycisku
     markBtn.addEventListener("click", () => {
-      data.actions[today] = true;
-      saveData();
+      if (data.actions[today]) {
+        delete data.actions[today]; // cofamy zaznaczenie
+      } else {
+        data.actions[today] = true; // zaznaczamy akcję na dziś
+      }
+      saveData(); // zapisujemy dane i odświeżamy widok
     });
 
+    // Inicjalizacja: sprawdź, czy zaczął się nowy tydzień
     updateStrengthIfNewWeek();
-    render();
+    render(); // wyświetl aktualne dane
   </script>
 </body>
 </html>
+
